@@ -22,8 +22,8 @@ resource_limits = {
 }
 
 # Функция для отправки текста в Yandex GPT и получения ответа
-def GPT():
-	def generate_text(query):
+@bot.message_handler(commands=['generate'])
+def generate_text(query):
 		headers = {
 			'Authorization': f'Bearer {IAM_TOKEN}',
 			'Content-Type': 'application/json'
@@ -55,14 +55,13 @@ def GPT():
 																					  response.text)
 			return error_message
 
-	# Обработчик команды /start
-	@bot.message_handler(commands=['start'])
-	def start(message):
-		bot.reply_to(message, 'Привет! Для начала работы введите /generate для генерации истории.')
-
-	# Обработчик текстовых сообщений
-	@bot.message_handler(func=lambda message: True)
-	def handle_text(message):
+# Обработчик команды /start
+@bot.message_handler(commands=['start'])
+def start(message):
+		bot.reply_to(message, 'Привет! Для начала работы введите /tts, если Вы хотите перевести текст в аудио формат. Либо /generate, чтобы начать работу с обычным GPT.')
+# Обработчик текстовых сообщений
+@bot.message_handler(func=lambda message: True, commands = ['generate'])
+def handle_text(message):
 		query = message.text
 		generated_text = generate_text(query)
 		bot.reply_to(message, generated_text)
@@ -99,14 +98,13 @@ def voice_to_text(message):
 		bot.reply_to(message, "Ошибка распознавания аудио")
 
 # Функция для преобразования текста в голос с помощью SpeechKit
-def text_to_voice(text):
-	@bot.message_handler(commands=['tts'])
-	def request_text(message):
+@bot.message_handler(commands=['tts'])
+def request_text(message):
 		bot.send_message(message.chat.id, "Я готов к работе с вашим текстом. Пожалуйста, отправьте текст для озвучки.")
-
+		bot.register_next_step_handler(text_to_speech)
 	# Функция для обработки текстовых сообщений после команды /tts
-	@bot.message_handler(func=lambda message: True, content_types=['text'])
-	def text_to_speech(message):
+@bot.message_handler(func=lambda message: True, content_types=['text'])
+def text_to_speech(message):
 		# Отправляем "набирает сообщение" в чат
 		bot.send_chat_action(message.chat.id, 'typing')
 
