@@ -63,12 +63,17 @@ def start(message):
     bot.reply_to(message, 'Привет! Для начала работы введите /tts, если Вы хотите перевести текст в аудио формат. Либо /generate, чтобы начать работу с обычным GPT.')
 
 # Обработчик текстовых сообщений
-@bot.message_handler(func=lambda message: True, commands=['generate'])
+@bot.message_handler(commands=['generate'])
 def handle_text(message):
+    bot.reply_to(message, "Введите текст для обработки GPT")
+    bot.register_next_step_handler(message, process_text)
+
+
+def process_text(message):
     query = message.text
     generated_text = generate_text(query)
     bot.reply_to(message, generated_text)
-
+    
 # Функция для преобразования голосового сообщения в текст с помощью SpeechKit
 @bot.message_handler(content_types=['voice'])
 def voice_to_text(message):
