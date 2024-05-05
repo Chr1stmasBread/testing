@@ -1,13 +1,7 @@
 import telebot
-from GPT_token import *
 import requests
-
-# Токен вашего бота от BotFather
-TOKEN = '6909794689:AAHrYJnhlaLLgWdyyvq0fxoxhADC6mHereI'
-
-# IAM-токен и ID папки для доступа к Yandex SpeechKit
-IAM_TOKEN = f'{iam_token}'
-FOLDER_ID = 'b1gh7qec08g3hugo7d7g'
+from GPT_token import iam_token
+from config_last import TOKEN, FOLDER_ID
 
 # Инициализация бота
 bot = telebot.TeleBot(TOKEN)
@@ -25,7 +19,7 @@ resource_limits = {
 def generate_text(query):
     try:
         headers = {
-            'Authorization': f'Bearer {IAM_TOKEN}',
+            'Authorization': f'Bearer {iam_token}',
             'Content-Type': 'application/json'
         }
         data = {
@@ -68,43 +62,41 @@ def handle_text(message):
     bot.reply_to(message, "Введите текст для обработки GPT")
     bot.register_next_step_handler(message, process_text)
 
-
 def process_text(message):
     query = message.text
     generated_text = generate_text(query)
     bot.reply_to(message, generated_text)
 
+@bot.message_handler(content_types=['voice'])
+def handle_voice(message):
+    bot.reply_to(message, "Распознаю голосовое сообщение...")
+    bot.register_next_step_handler(message, voice_to_text)
+
 # Функция для преобразования голосового сообщения в текст с помощью SpeechKit
 @bot.message_handler(content_types=['voice'])
 def voice_to_text(message):
     try:
-        # Получаем информацию о голосовом сообщении
         file_info = bot.get_file(message.voice.file_id)
-        file_path = file_info.file_path
+        file_url = file_info.file_path
 
-        # Скачиваем аудиофайл
-        file_url = f"https://api.telegram.org/file/bot{TOKEN}/{file_path}"
-        audio_file = requests.get(file_url)
+        response = requests.get(f"https://api.telegram.org/file/bot{TOKEN}/{file_url}")
 
-        # Отправляем "набирает сообщение" в чат
-        bot.send_chat_action(message.chat.id, 'typing')
-
-        # Параметры запроса к SpeechKit
-        headers = {'Authorization': f'Bearer {IAM_TOKEN}'}
-        files = {'file': audio_file.content}
-        params = {'folderId': FOLDER_ID, 'lang': 'ru-RU'}  # Язык текста (русский)
-
-        # Отправка запроса на распознавание речи
-        response = requests.post('https://stt.api.cloud.yandex.net/speech/v1/stt:recognize', headers=headers,
-                                 files=files,
-                                 params=params)
-
-        # Обработка ответа
         if response.status_code == 200:
-            text = response.json()['result']
-            bot.reply_to(message, f"Распознанный текст:\n{text}")
+            headers = {'Authorization': f'Bearer {iam_token}'}
+            files = {'file': response.content}
+            params = {'folderId': FOLDER_ID, 'lang': 'ru-RU'}
+            response = requests.post('https://stt.api.cloud.yandex.net/speech/v1/stt:recognize',
+                                     headers=headers,
+                                     files=files,
+                                     params=params)
+
+            if response.status_code == 200:
+                text = response.json()['result']
+                bot.reply_to(message, f"Распознанный текст:\n{text}")
+            else:
+                bot.reply_to(message, "Ошибка распознавания аудио")
         else:
-            bot.reply_to(message, "Ошибка распознавания аудио")
+            bot.reply_to(message, "Ошибка загрузки аудиофайла")
     except Exception as e:
         bot.reply_to(message, f"Ошибка при обработке голосового сообщения: {str(e)}")
 
@@ -114,36 +106,26 @@ def request_text(message):
     bot.send_message(message.chat.id, "Я готов к работе с вашим текстом. Пожалуйста, отправьте текст для озвучки.")
     bot.register_next_step_handler(message, text_to_speech)
 
-# Функция для обработки текстовых сообщений после команды /tts
 def text_to_speech(message):
     try:
-        # Отправляем "набирает сообщение" в чат
         bot.send_chat_action(message.chat.id, 'typing')
-
-        # Получаем текст из сообщения пользователя
         text = message.text
-
-        # Параметры запроса к SpeechKit
         data = {
             'text': text,
-            'speed': 1.1,  # Скорость речи
-            'emotion': 'good',  # Эмоциональная окраска
-            'lang': 'ru-RU',  # Язык текста (русский)
-            'voice': 'jane',  # Голос Джейн
+            'speed': 1.1,
+            'emotion': 'good',
+            'lang': 'ru-RU',
+            'voice': 'jane',
             'folderId': FOLDER_ID,
         }
-        headers = {'Authorization': f'Bearer {IAM_TOKEN}'}
-
-        # Отправка запроса к SpeechKit
-        response = requests.post('https://tts.api.cloud.yandex.net/speech/v1/tts:synthesize', headers=headers,
+        headers = {'Authorization': f'Bearer {iam_token}'}
+        response = requests.post('https://tts.api.cloud.yandex.net/speech/v1/tts:synthesize',
+                                 headers=headers,
                                  data=data)
 
-        # Обработка ответа
         if response.status_code == 200:
-            # Отправка аудиосообщения пользователю
             bot.send_voice(message.chat.id, response.content)
         else:
-            # Сообщение об ошибке, если запрос к SpeechKit завершился неудачно
             bot.reply_to(message, "При преобразовании текста в речь возникла ошибка")
     except Exception as e:
         bot.reply_to(message, f"Ошибка при преобразовании текста в речь: {str(e)}")
