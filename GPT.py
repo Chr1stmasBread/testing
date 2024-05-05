@@ -67,13 +67,7 @@ def process_text(message):
     generated_text = generate_text(query)
     bot.reply_to(message, generated_text)
 
-@bot.message_handler(content_types=['voice'])
-def handle_voice(message):
-    bot.reply_to(message, "Распознаю голосовое сообщение...")
-    bot.register_next_step_handler(message, voice_to_text)
-
 # Функция для преобразования голосового сообщения в текст с помощью SpeechKit
-@bot.message_handler(content_types=['voice'])
 def voice_to_text(message):
     try:
         file_info = bot.get_file(message.voice.file_id)
@@ -99,6 +93,12 @@ def voice_to_text(message):
             bot.reply_to(message, "Ошибка загрузки аудиофайла")
     except Exception as e:
         bot.reply_to(message, f"Ошибка при обработке голосового сообщения: {str(e)}")
+
+# Обработчик голосовых сообщений
+@bot.message_handler(content_types=['voice'])
+def handle_voice(message):
+    bot.reply_to(message, "Распознаю голосовое сообщение...")
+    voice_to_text(message)
 
 # Функция для преобразования текста в голос с помощью SpeechKit
 @bot.message_handler(commands=['tts'])
