@@ -73,7 +73,7 @@ def process_text(message):
     query = message.text
     generated_text = generate_text(query)
     bot.reply_to(message, generated_text)
-    
+
 # Функция для преобразования голосового сообщения в текст с помощью SpeechKit
 @bot.message_handler(content_types=['voice'])
 def voice_to_text(message):
